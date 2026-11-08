@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.moa.data.local.entity.CategoryEntity
 import com.example.moa.data.local.entity.TransactionType
+import com.example.moa.data.repository.FixedExpenseRepository
 
 @Composable
 fun CategoryScreen(
@@ -74,6 +75,11 @@ fun CategoryScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(state.categories, key = { it.id }) { category ->
+                val isFixedExpenseCategory =
+                    category.type == TransactionType.EXPENSE &&
+                        category.name ==
+                        FixedExpenseRepository.FIXED_EXPENSE_CATEGORY_NAME
+
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
@@ -92,16 +98,16 @@ fun CategoryScreen(
                             onClick = {
                                 editingCategory = category
                             },
-                            enabled = !state.isSaving
+                            enabled = !state.isSaving && !isFixedExpenseCategory
                         ) {
-                            Text("수정")
+                            Text(if (isFixedExpenseCategory) "자동" else "수정")
                         }
 
                         TextButton(
                             onClick = {
                                 deletingCategory = category
                             },
-                            enabled = !state.isSaving
+                            enabled = !state.isSaving && !isFixedExpenseCategory
                         ) {
                             Text("삭제")
                         }

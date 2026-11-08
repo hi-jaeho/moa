@@ -2,6 +2,7 @@
 package com.example.moa.ui.statistics
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,7 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.moa.ui.common.ThousandsSeparatorVisualTransformation
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -38,6 +41,8 @@ fun StatisticsScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showInitialBalanceDialog by remember { mutableStateOf(false) }
+    var initialBalanceInput by remember { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -77,6 +82,16 @@ fun StatisticsScreen(
         if (state.isLoading) {
             CircularProgressIndicator()
         } else {
+            FinancialOverviewSection(
+                state = state,
+                onEditInitialBalance = {
+                    initialBalanceInput = state.initialBalance.toString()
+                    showInitialBalanceDialog = true
+                }
+            )
+
+            HorizontalDivider()
+
             SummarySection(state)
 
             HorizontalDivider()
@@ -147,15 +162,110 @@ fun StatisticsScreen(
 
         Spacer(Modifier.height(24.dp))
     }
+
+    if (showInitialBalanceDialog) {
+        AlertDialog(
+            onDismissRequest = { showInitialBalanceDialog = false },
+            title = { Text("시작 보유금액 설정") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Moa에 수입·지출을 기록하기 전에 이미 가지고 있던 " +
+                            "현금과 통장 잔액의 합계를 입력해 주세요."
+                    )
+                    OutlinedTextField(
+                        value = initialBalanceInput,
+                        onValueChange = { input ->
+                            initialBalanceInput = input.filter(Char::isDigit)
+                        },
+                        label = { Text("시작 보유금액") },
+                        suffix = { Text("원") },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number
+                        ),
+                        visualTransformation = ThousandsSeparatorVisualTransformation,
+                        singleLine = true
+                    )
+                    Text(
+                        "예: 시작할 때 100만 원이 있었다면 1,000,000원을 입력합니다. " +
+                            "이후 등록한 수입과 지출은 자동으로 반영됩니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = initialBalanceInput.toLongOrNull() != null,
+                    onClick = {
+                        initialBalanceInput.toLongOrNull()?.let {
+                            viewModel.saveInitialBalance(it)
+                            showInitialBalanceDialog = false
+                        }
+                    }
+                ) {
+                    Text("저장")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInitialBalanceDialog = false }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun FinancialOverviewSection(
+    state: StatisticsUiState,
+    onEditInitialBalance: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "전체 재정 현황",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Text(
+                "${state.month.year}년 ${state.month.monthValue}월 말 예상 보유금액",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                formatMoney(state.estimatedBalance),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (state.estimatedBalance < 0L) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
+            )
+            Text(
+                "시작 ${formatMoney(state.initialBalance)} + " +
+                    "누적 수입 ${formatMoney(state.cumulativeIncome)} - " +
+                    "누적 지출 ${formatMoney(state.cumulativeExpense)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(onClick = onEditInitialBalance) {
+                Text("시작 보유금액 수정")
+            }
+        }
+    }
 }
 
 @Composable
 private fun SummarySection(state: StatisticsUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SummaryItem("총수입", state.income, Color(0xFF1976D2))
-        SummaryItem("총지출", state.expense, Color(0xFFD32F2F))
+        SummaryItem("이번 달 수입", state.income, Color(0xFF1976D2))
+        SummaryItem("이번 달 지출", state.expense, Color(0xFFD32F2F))
         SummaryItem(
-            "잔액",
+            "이번 달 증감",
             state.balance,
             MaterialTheme.colorScheme.onSurface
         )

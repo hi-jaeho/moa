@@ -68,4 +68,11 @@ class TransactionRepository(
             endDate
         )
     }
+
+    fun getTotalByTypeUntil(
+        type: TransactionType,
+        endDate: LocalDate
+    ): Flow<Long> {
+        return transactionDao.getTotalByTypeUntil(type, endDate)
+    }
 }

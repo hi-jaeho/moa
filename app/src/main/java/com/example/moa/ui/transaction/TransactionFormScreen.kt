@@ -13,9 +13,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.moa.data.local.entity.TransactionType
+import com.example.moa.ui.common.ThousandsSeparatorVisualTransformation
 import java.time.LocalDate
-import java.text.NumberFormat
-import java.util.Locale
 @Composable
 fun TransactionFormScreen(
     viewModel: TransactionViewModel
@@ -74,9 +73,7 @@ fun TransactionFormScreen(
 
         // 금액
         OutlinedTextField(
-            value = amount.toLongOrNull()?.let {
-                NumberFormat.getNumberInstance(Locale.KOREA).format(it)
-            } ?: amount,
+            value = amount,
             onValueChange = { input ->
                 viewModel.setAmount(input.filter { it.isDigit() })
             },
@@ -85,6 +82,7 @@ fun TransactionFormScreen(
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Number
             ),
+            visualTransformation = ThousandsSeparatorVisualTransformation,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )

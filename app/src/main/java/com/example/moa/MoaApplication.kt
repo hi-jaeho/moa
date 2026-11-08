@@ -14,7 +14,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import com.example.moa.data.local.migration.MIGRATION_1_2
+import com.example.moa.data.local.migration.MIGRATION_2_3
+import com.example.moa.data.local.migration.MIGRATION_3_4
 import com.example.moa.data.repository.BudgetRepository
+import com.example.moa.data.repository.FinancialProfileRepository
+import com.example.moa.data.repository.FixedExpenseRepository
 
 class MoaApplication : Application() {
 
@@ -32,7 +36,7 @@ class MoaApplication : Application() {
             AppDatabase::class.java,
             "moa_database"
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
     }
 
@@ -51,11 +55,20 @@ class MoaApplication : Application() {
         )
     }
 
+    val financialProfileRepository by lazy {
+        FinancialProfileRepository(database.financialProfileDao())
+    }
+
+    val fixedExpenseRepository by lazy {
+        FixedExpenseRepository(database)
+    }
+
     override fun onCreate() {
         super.onCreate()
 
         applicationScope.launch {
             initializeCategories()
+            ensureFixedExpenseCategory()
         }
     }
 
@@ -91,5 +104,25 @@ class MoaApplication : Application() {
         preferences.edit()
             .putBoolean("categories_initialized", true)
             .commit()
+    }
+
+    private suspend fun ensureFixedExpenseCategory() {
+        database.withTransaction {
+            val dao = database.categoryDao()
+            val existing = dao.getByNameAndType(
+                name = FixedExpenseRepository.FIXED_EXPENSE_CATEGORY_NAME,
+                type = TransactionType.EXPENSE
+            )
+
+            if (existing == null) {
+                dao.insert(
+                    CategoryEntity(
+                        name = FixedExpenseRepository.FIXED_EXPENSE_CATEGORY_NAME,
+                        type = TransactionType.EXPENSE,
+                        sortOrder = 8
+                    )
+                )
+            }
+        }
     }
 }

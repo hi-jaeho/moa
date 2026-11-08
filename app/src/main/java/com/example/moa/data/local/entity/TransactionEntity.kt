@@ -18,7 +18,11 @@ import java.time.LocalDate
     ],
     indices = [
         Index("categoryId"),
-        Index("date")
+        Index("date"),
+        Index(
+            value = ["fixedExpenseId", "fixedExpenseYearMonth"],
+            unique = true
+        )
     ]
 )
 data class TransactionEntity(
@@ -34,6 +38,10 @@ data class TransactionEntity(
     val categoryId: Long,
 
     val memo: String? = null,
+
+    val fixedExpenseId: Long? = null,
+
+    val fixedExpenseYearMonth: String? = null,
 
     val createdAt: Long = System.currentTimeMillis(),
 

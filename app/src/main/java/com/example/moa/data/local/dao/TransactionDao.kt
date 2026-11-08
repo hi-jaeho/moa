@@ -4,6 +4,7 @@ package com.example.moa.data.local.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.moa.data.local.entity.TransactionEntity
@@ -21,6 +22,9 @@ interface TransactionDao {
 
     @Insert
     suspend fun insert(transaction: TransactionEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertFixedExpense(transaction: TransactionEntity): Long
 
     @Update
     suspend fun update(transaction: TransactionEntity)
@@ -64,6 +68,17 @@ interface TransactionDao {
     fun getTotalByType(
         type: TransactionType,
         startDate: LocalDate,
+        endDate: LocalDate
+    ): Flow<Long>
+
+    @Query("""
+        SELECT COALESCE(SUM(amount), 0)
+        FROM transactions
+        WHERE type = :type
+        AND date <= :endDate
+    """)
+    fun getTotalByTypeUntil(
+        type: TransactionType,
         endDate: LocalDate
     ): Flow<Long>
 

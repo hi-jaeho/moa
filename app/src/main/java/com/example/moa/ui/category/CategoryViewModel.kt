@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.moa.MoaApplication
 import com.example.moa.data.local.entity.CategoryEntity
 import com.example.moa.data.local.entity.TransactionType
+import com.example.moa.data.repository.FixedExpenseRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -88,6 +89,11 @@ class CategoryViewModel(
         category: CategoryEntity,
         newName: String
     ) {
+        if (isFixedExpenseCategory(category)) {
+            showMessage("고정비 카테고리는 자동으로 관리됩니다.")
+            return
+        }
+
         val trimmed = newName.trim()
         if (!validateName(trimmed)) return
 
@@ -115,6 +121,11 @@ class CategoryViewModel(
     }
 
     fun deleteCategory(category: CategoryEntity) {
+        if (isFixedExpenseCategory(category)) {
+            showMessage("고정비 카테고리는 삭제할 수 없습니다.")
+            return
+        }
+
         _uiState.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
@@ -143,6 +154,11 @@ class CategoryViewModel(
         }
 
         return true
+    }
+
+    private fun isFixedExpenseCategory(category: CategoryEntity): Boolean {
+        return category.type == TransactionType.EXPENSE &&
+            category.name == FixedExpenseRepository.FIXED_EXPENSE_CATEGORY_NAME
     }
 
     private fun showMessage(message: String) {

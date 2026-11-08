@@ -40,6 +40,16 @@ interface CategoryDao {
     suspend fun getCategoryById(id: Long): CategoryEntity?
 
     @Query("""
+        SELECT * FROM categories
+        WHERE name = :name AND type = :type
+        LIMIT 1
+    """)
+    suspend fun getByNameAndType(
+        name: String,
+        type: TransactionType
+    ): CategoryEntity?
+
+    @Query("""
         SELECT COUNT(*) FROM categories
         WHERE name = :name AND type = :type
     """)

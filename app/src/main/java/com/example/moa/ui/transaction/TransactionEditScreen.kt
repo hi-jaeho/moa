@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.moa.data.local.entity.TransactionType
+import com.example.moa.ui.common.ThousandsSeparatorVisualTransformation
 import java.time.LocalDate
 
 @Composable
@@ -112,6 +113,7 @@ fun TransactionEditScreen(
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number
                 ),
+                visualTransformation = ThousandsSeparatorVisualTransformation,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )

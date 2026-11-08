@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.moa.ui.common.ThousandsSeparatorVisualTransformation
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -226,6 +227,7 @@ fun BudgetScreen(
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
                     ),
+                    visualTransformation = ThousandsSeparatorVisualTransformation,
                     singleLine = true
                 )
             },

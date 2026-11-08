@@ -94,7 +94,8 @@ fun BackupScreen(
             text = {
                 Text(
                     "카테고리 ${data.categories.size}개와 " +
-                            "거래 ${data.transactions.size}개를 복원합니다.\n\n" +
+                            "거래 ${data.transactions.size}개, " +
+                            "고정비 ${data.fixedExpenses.size}개를 복원합니다.\n\n" +
                             "현재 저장된 모든 거래와 카테고리가 " +
                             "백업 파일의 데이터로 교체됩니다.\n\n" +
                             "계속하시겠습니까?"
@@ -129,7 +130,8 @@ fun BackupScreen(
         )
 
         Text(
-            "Moa의 거래 내역과 카테고리를 JSON 파일로 보관할 수 있습니다."
+            "Moa의 거래 내역, 카테고리, 보유금액과 고정비 설정을 " +
+                "JSON 파일로 보관할 수 있습니다."
         )
 
         Button(

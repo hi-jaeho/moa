@@ -6,22 +6,28 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.moa.data.local.entity.TransactionEntity
 import com.example.moa.data.local.entity.TransactionType
+import com.example.moa.data.local.entity.FixedExpenseEntity
+import com.example.moa.ui.common.ThousandsSeparatorVisualTransformation
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
+import kotlin.math.absoluteValue
 
 private val incomeColor = Color(0xFF1976D2)
 private val expenseColor = Color(0xFFD32F2F)
@@ -46,6 +52,7 @@ fun CalendarScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showFixedExpenseDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -63,8 +70,49 @@ fun CalendarScreen(
                     style = MaterialTheme.typography.headlineMedium
                 )
 
-                TextButton(onClick = viewModel::goToToday) {
-                    Text("오늘")
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = viewModel::applyFixedExpenses,
+                        enabled = !state.isApplyingFixedExpenses
+                    ) {
+                        Text(
+                            if (state.isApplyingFixedExpenses) {
+                                "적용 중"
+                            } else {
+                                "고정비 적용"
+                            }
+                        )
+                    }
+
+                    TextButton(onClick = { showFixedExpenseDialog = true }) {
+                        Text("추가")
+                    }
+                }
+            }
+        }
+
+        state.fixedExpenseMessage?.let { message ->
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = message,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = viewModel::clearFixedExpenseMessage) {
+                            Text("확인")
+                        }
+                    }
                 }
             }
         }
@@ -85,8 +133,13 @@ fun CalendarScreen(
                     style = MaterialTheme.typography.titleLarge
                 )
 
-                IconButton(onClick = viewModel::nextMonth) {
-                    Text("〉")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = viewModel::goToToday) {
+                        Text("오늘")
+                    }
+                    IconButton(onClick = viewModel::nextMonth) {
+                        Text("〉")
+                    }
                 }
             }
         }
@@ -151,6 +204,167 @@ fun CalendarScreen(
             Spacer(Modifier.height(80.dp))
         }
     }
+
+    if (showFixedExpenseDialog) {
+        FixedExpenseDialog(
+            fixedExpenses = state.fixedExpenses,
+            onAdd = viewModel::addFixedExpense,
+            onDelete = viewModel::deleteFixedExpense,
+            onDismiss = { showFixedExpenseDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun FixedExpenseDialog(
+    fixedExpenses: List<FixedExpenseEntity>,
+    onAdd: (String, Int, Long) -> Unit,
+    onDelete: (FixedExpenseEntity) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var day by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("고정비 추가") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "매달 반복되는 항목을 정해 두세요. 적용 버튼을 눌러야 " +
+                        "선택한 달의 지출로 입력됩니다."
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = {
+                        name = it
+                        error = null
+                    },
+                    label = { Text("항목 (예: 월세, 넷플릭스)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = day,
+                    onValueChange = {
+                        day = it.filter(Char::isDigit).take(2)
+                        error = null
+                    },
+                    label = { Text("매월 며칠") },
+                    suffix = { Text("일") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = {
+                        amount = it.filter(Char::isDigit)
+                        error = null
+                    },
+                    label = { Text("금액") },
+                    suffix = { Text("원") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    visualTransformation = ThousandsSeparatorVisualTransformation,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    "31일이 없는 달에는 그 달의 마지막 날로 들어갑니다. " +
+                        "카테고리는 ‘고정비’로 자동 지정됩니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+
+                Button(
+                    onClick = {
+                        val dayValue = day.toIntOrNull()
+                        val amountValue = amount.toLongOrNull()
+
+                        error = when {
+                            name.isBlank() -> "항목을 입력해 주세요."
+                            dayValue == null || dayValue !in 1..31 ->
+                                "날짜는 1일부터 31일 사이로 입력해 주세요."
+                            amountValue == null || amountValue <= 0L ->
+                                "0원보다 큰 금액을 입력해 주세요."
+                            else -> null
+                        }
+
+                        if (error == null && dayValue != null && amountValue != null) {
+                            onAdd(name, dayValue, amountValue)
+                            name = ""
+                            day = ""
+                            amount = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("고정비 항목 저장")
+                }
+
+                HorizontalDivider()
+
+                Text(
+                    "저장된 고정비",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                if (fixedExpenses.isEmpty()) {
+                    Text(
+                        "아직 저장된 고정비가 없습니다.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    fixedExpenses.forEach { fixedExpense ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    fixedExpense.name,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "매월 ${fixedExpense.dayOfMonth}일 · " +
+                                        money(fixedExpense.amount),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            TextButton(onClick = { onDelete(fixedExpense) }) {
+                                Text("삭제")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        }
+    )
 }
 
 @Composable
@@ -172,12 +386,71 @@ private fun MonthlySummary(state: CalendarUiState) {
             )
         }
 
-        SummaryCard(
-            title = "월간 잔액",
-            amount = state.balance,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PreviousMonthExpenseCard(
+                currentExpense = state.expense,
+                previousExpense = state.previousMonthExpense,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+
+            SummaryCard(
+                title = "월간 잔액",
+                amount = state.balance,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+        }
+    }
+}
+
+@Composable
+private fun PreviousMonthExpenseCard(
+    currentExpense: Long,
+    previousExpense: Long,
+    modifier: Modifier = Modifier
+) {
+    val difference = currentExpense - previousExpense
+    val comparisonText = when {
+        difference > 0L -> "${money(difference.absoluteValue)} 증가"
+        difference < 0L -> "${money(difference.absoluteValue)} 감소"
+        else -> "변동 없음"
+    }
+    val comparisonColor = when {
+        difference > 0L -> expenseColor
+        difference < 0L -> incomeColor
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "지난달 대비 지출",
+                style = MaterialTheme.typography.labelMedium
+            )
+            Text(
+                text = comparisonText,
+                color = comparisonColor,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "지난달 ${money(previousExpense)}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
     }
 }
 
