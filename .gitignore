@@ -1,0 +1,22 @@
+
+# Gradle
+.gradle/
+**/build/
+gradle/gradle-*-bin.zip
+gradle/gradle-*-all.zip
+
+# Android Studio
+.idea/
+*.iml
+local.properties
+
+# macOS
+.DS_Store
+
+# Signing keys
+*.jks
+*.keystore
+
+# APK
+*.apk
+*.aab
